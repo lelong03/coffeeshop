@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.core.validators import MinValueValidator
 
 
 class Category(models.Model):
@@ -24,12 +25,9 @@ class Drink(models.Model):
 
 
 class Order(models.Model):
-    order_number = models.CharField(max_length=50)
     customer_name = models.CharField(max_length=128, default="guest")
     order_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    total_price = models.FloatField(null=True, blank=True)
-    total_drink = models.IntegerField(null=True, blank=True)
     drinks = models.ManyToManyField(
         Drink,
         through='OrderDrink',
@@ -37,14 +35,21 @@ class Order(models.Model):
     )
 
     def __str__(self):
-        return self.order_number
-
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
+        return f'{self.id} - {self.customer_name}'
 
 
 class OrderDrink(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
     drink = models.ForeignKey(Drink, on_delete=models.CASCADE)
+    quantity = models.IntegerField(default=1, validators=[MinValueValidator(1)])
+    item_price = models.FloatField(null=True)
+    total_price = models.FloatField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        if self.drink is not None:
+            self.item_price = self.drink.price
+            self.total_price = self.item_price * self.quantity
+        super().save(force_insert, force_update, using, update_fields)
 

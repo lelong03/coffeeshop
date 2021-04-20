@@ -14,7 +14,6 @@ class DrinkInline(admin.StackedInline):
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ("name", "drink_count")
-
     inlines = [DrinkInline]
 
     def drink_count(self, obj):
@@ -31,13 +30,28 @@ class DrinkAdmin(admin.ModelAdmin):
 
 class OrderDrinkInline(admin.TabularInline):
     model = OrderDrink
+    fields = ("drink", "quantity")
 
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ("order_number", "total_drink", "total_price")
-
+    list_display = ("created_at", "customer_name", "order_by", "total_drink", "total_price")
+    fields = ("customer_name",)
     inlines = [OrderDrinkInline]
-    # def save_model(self, request, obj, form, change):
-    #     super(OrderAdmin, self).save_model(request, obj, form, change)
+
+    def total_drink(self, obj):
+        drink_count = 0
+        for order_drink in obj.orderdrink_set.all():
+            drink_count += order_drink.quantity
+        return drink_count
+
+    def total_price(self, obj):
+        total = 0
+        for order_drink in obj.orderdrink_set.all():
+            total += order_drink.total_price
+        return total
+
+    def save_model(self, request, obj, form, change):
+        obj.order_by = request.user
+        super().save_model(request, obj, form, change)
 
